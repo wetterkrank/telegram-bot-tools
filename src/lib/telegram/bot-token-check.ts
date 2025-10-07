@@ -16,7 +16,7 @@ export async function checkBotToken(token: string): Promise<ValidationResult> {
 
     if (data.ok && data.result) {
       const { first_name, username } = data.result;
-      return { success: true, message: `Connected to @${username} (${first_name})` };
+      return { success: true, message: `Provided token for @${username} (${first_name})` };
     } else {
       return { success: false, message: data.description || "Invalid bot token" };
     }

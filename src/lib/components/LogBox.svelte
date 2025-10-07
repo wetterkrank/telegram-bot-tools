@@ -9,12 +9,12 @@
   };
 </script>
 
-<div class="card">
+<div class="card h-100">
   <div class="card-header">
     <h5 class="card-title mb-0">Log</h5>
   </div>
   <div class="card-body">
-    <div class="bg-light p-3 rounded font-monospace fs-6" style="min-height: 300px; max-height: 600px; overflow-y: auto;">
+    <div class="bg-light p-3 rounded font-monospace fs-6" style="overflow-y: auto;">
       {#if logEntries.length === 0}
         <div class="text-muted text-center fst-italic">Results will appear here</div>
       {:else}

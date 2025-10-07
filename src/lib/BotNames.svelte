@@ -103,7 +103,6 @@
           `${row.languageCode}: ${data.ok ? "OK" : data.description || "Error"}`,
           data.ok ? 'success' : 'error'
         );
-
         await new Promise(resolve => setTimeout(resolve, TELEGRAM_API_DELAY));
       } catch (error) {
         addLogEntry(
@@ -293,7 +292,7 @@ de,Dieser Bot macht etwas."
     </form>
   </div>
 
-  <div class="col-lg-6">
+  <div class="col-lg-6 mb-3">
     <LogBox {logEntries} />
   </div>
 </div>

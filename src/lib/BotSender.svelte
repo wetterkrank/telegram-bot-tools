@@ -5,10 +5,12 @@
 
   // Reactive state
   let botToken: string = '';
-  let chatId: string = '';
+  let chatIds: string = '';
   let message: string = '';
   let isSending: boolean = false;
   let logEntries: { text: string; type: 'success' | 'error' | 'info'; id: number }[] = [];
+
+  const TELEGRAM_API_BROADCAST_DELAY = 100;
 
   // Log management
   function addLogEntry(text: string, type: 'success' | 'error' | 'info' = 'info') {
@@ -37,33 +39,55 @@
 
   // Handle form submission
   async function handleSubmit() {
-    if (!botToken || !chatId || !message) return;
+    if (!botToken || !chatIds || !message) return;
 
     isSending = true;
     clearLog();
-    addLogEntry("Sending message...", "info");
 
-    try {
-      const result = await sendDataToTelegram({
-        botToken,
-        chatId,
-        message
-      });
+    const chatIdArray = chatIds
+      .split('\n')
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
 
-      if (result.ok) {
-        addLogEntry("Message sent successfully!", "success");
-        // Clear form fields after successful send
-        chatId = '';
-        message = '';
-      } else {
-        addLogEntry(`Error: ${result.description}`, "error");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      addLogEntry(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, "error");
-    } finally {
+    if (chatIdArray.length === 0) {
+      addLogEntry("No chat IDs provided", "error");
       isSending = false;
+      return;
     }
+
+    addLogEntry(`Sending message to ${chatIdArray.length} chat(s)...`, "info");
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const chatId of chatIdArray) {
+      try {
+        const result = await sendDataToTelegram({
+          botToken,
+          chatId,
+          message
+        });
+
+        if (result.ok) {
+          successCount++;
+          addLogEntry(`✓ ${chatId}`, "success");
+        } else {
+          errorCount++;
+          addLogEntry(`✗ ${chatId}: ${result.description}`, "error");
+        }
+      } catch (error) {
+        errorCount++;
+        addLogEntry(`✗ Error sending to ${chatId}: ${error instanceof Error ? error.message : 'Unknown error'}`, "error");
+      }
+      await new Promise(resolve => setTimeout(resolve, TELEGRAM_API_BROADCAST_DELAY));
+    }
+
+    addLogEntry(`${successCount} message(s) sent, ${errorCount} failed`, "info");
+    isSending = false;
+
+    // Clear form fields after successful sending
+    // chatIds = '';
+    // message = '';
   }
 
   async function handleTokenValidation(token: string) {
@@ -115,14 +139,17 @@
           </div>
 
           <div class="mb-3">
-            <label for="chatId" class="form-label">Chat ID (<a href="https://t.me/userinfobot" target="_blank" class="text-decoration-none">@userinfobot</a> to get yours):</label>
-            <input
-              type="text"
-              id="chatId"
+            <label for="chatIds" class="form-label">Chat IDs (<a href="https://t.me/userinfobot" target="_blank" class="text-decoration-none">@userinfobot</a> to get your chat ID):</label>
+            <textarea
+              id="chatIds"
               class="form-control"
-              bind:value={chatId}
+              rows="6"
+              bind:value={chatIds}
               required
-            />
+            ></textarea>
+            <div class="form-text">
+              One chat ID per line.
+            </div>
           </div>
 
           <div class="mb-3">
@@ -142,7 +169,7 @@
             <button
               type="submit"
               class="btn btn-primary btn-lg"
-              disabled={isSending || !botToken || !chatId || !message}
+              disabled={isSending || !botToken || !chatIds || !message}
             >
               {isSending ? 'Sending...' : 'Send Message'}
             </button>
@@ -152,7 +179,7 @@
     </div>
   </div>
 
-  <div class="col-lg-6">
+  <div class="col-lg-6 mb-3">
     <LogBox {logEntries} />
   </div>
 </div>

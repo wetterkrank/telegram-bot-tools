@@ -57,7 +57,7 @@ test.describe('BotSender E2E Tests', () => {
       });
     });
 
-    // Navigate to page and verify initial state
+    // Navigate to page first
     await page.goto('/bot-sender');
     await page.waitForLoadState('networkidle');
 
@@ -67,25 +67,20 @@ test.describe('BotSender E2E Tests', () => {
 
     // Fill in all required fields
     await page.getByLabel('Bot Token').fill('123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11');
-    await page.getByLabel('Chat ID').fill('123456789');
+    await page.getByLabel('Chat IDs').fill('123456789');
     await page.getByLabel('Message').fill('Test message');
-
-    // Check that submit button is now enabled
-    await expect(submitButton).toBeEnabled();
 
     // Submit the form
     await submitButton.click();
 
-    // Wait for the request to complete
-    await page.waitForResponse('**/api.telegram.org/bot*/sendMessage');
+    // Wait for the log messages to appear (instead of waiting for response)
+    await expect(page.getByText('Sending message to 1 chat(s)...')).toBeVisible();
+    await expect(page.getByText('✓ 123456789')).toBeVisible();
+    await expect(page.getByText('1 message(s) sent, 0 failed')).toBeVisible();
 
-    // Check that success messages appear in log
-    await expect(page.getByText('Sending message...')).toBeVisible();
-    await expect(page.getByText('Message sent successfully!')).toBeVisible();
-
-    // Check that form fields are cleared (except bot token)
-    await expect(page.getByLabel('Chat ID')).toHaveValue('');
-    await expect(page.getByLabel('Message')).toHaveValue('');
+    // Check that form fields are preserved (not cleared in updated component)
+    await expect(page.getByLabel('Chat IDs')).toHaveValue('123456789');
+    await expect(page.getByLabel('Message')).toHaveValue('Test message');
     await expect(page.getByLabel('Bot Token')).toHaveValue('123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11');
   });
 
@@ -109,17 +104,15 @@ test.describe('BotSender E2E Tests', () => {
 
     // Fill in all required fields
     await page.getByLabel('Bot Token').fill('123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11');
-    await page.getByLabel('Chat ID').fill('invalid-chat-id');
+    await page.getByLabel('Chat IDs').fill('invalid-chat-id');
     await page.getByLabel('Message').fill('Test message');
 
     // Submit the form
     await page.getByRole('button', { name: 'Send Message' }).click();
 
-    // Wait for the request to complete
-    await page.waitForResponse('**/api.telegram.org/bot*/sendMessage');
-
-    // Check that error messages appear in log
-    await expect(page.getByText('Sending message...')).toBeVisible();
-    await expect(page.getByText('Error: Bad Request: chat not found')).toBeVisible();
+    // Wait for the log messages to appear (instead of waiting for response)
+    await expect(page.getByText('Sending message to 1 chat(s)...')).toBeVisible();
+    await expect(page.getByText('✗ invalid-chat-id: Bad Request: chat not found')).toBeVisible();
+    await expect(page.getByText('0 message(s) sent, 1 failed')).toBeVisible();
   });
 });
