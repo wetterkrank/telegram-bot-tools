@@ -5,7 +5,7 @@ export interface ValidationResult {
   message: string;
 }
 
-export async function validateBotToken(token: string): Promise<ValidationResult> {
+export async function checkBotToken(token: string): Promise<ValidationResult> {
   if (!token) {
     return { success: false, message: 'No token provided' };
   }

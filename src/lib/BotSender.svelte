@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { TelegramSendMessageResponse } from '../types/telegram';
   import LogBox from './components/LogBox.svelte';
-  import { validateBotToken } from './functions/botTokenValidation';
+  import { checkBotToken } from './telegram/bot-token-check';
 
   // Reactive state
   let botToken: string = '';
@@ -72,7 +72,7 @@
       return;
     }
 
-    const result = await validateBotToken(token);
+    const result = await checkBotToken(token);
     addLogEntry(result.message, result.success ? 'success' : 'error');
   }
 
@@ -90,14 +90,14 @@
   <div class="col-12">
     <h1 class="mb-3">Bot Sender</h1>
     <p class="lead mb-4">
-      Sends messages to specifed chats from your bot
+      Sends a message from your bot to specifed chats
     </p>
   </div>
 </div>
 
 <div class="row">
-  <div class="col-lg-6">
-    <div class="card shadow">
+  <div class="col-lg-6 mb-3">
+    <div class="card">
       <div class="card-body">
         <form on:submit|preventDefault={handleSubmit}>
           <div class="mb-3">
@@ -142,7 +142,7 @@
             <button
               type="submit"
               class="btn btn-primary btn-lg"
-              disabled={isSending}
+              disabled={isSending || !botToken || !chatId || !message}
             >
               {isSending ? 'Sending...' : 'Send Message'}
             </button>
@@ -153,6 +153,6 @@
   </div>
 
   <div class="col-lg-6">
-    <LogBox {logEntries} title="Results" />
+    <LogBox {logEntries} />
   </div>
 </div>

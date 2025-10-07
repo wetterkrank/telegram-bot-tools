@@ -4,9 +4,8 @@
 
 <div class="row">
   <div class="col-12">
-    <h1 class="mb-3">Telegram Bot Tools</h1>
     <p class="lead mb-4">
-      A collection of web-based tools for managing Telegram bots.
+      A couple of web-based tools for managing Telegram bots.
     </p>
   </div>
 </div>

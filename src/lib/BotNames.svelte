@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { TelegramResponse, TelegramBotInfo } from '../types/telegram';
   import LogBox from './components/LogBox.svelte';
-  import { validateBotToken } from './functions/botTokenValidation';
+  import { checkBotToken } from './telegram/bot-token-check';
+  import allLanguageCodes from './data/iso-language-codes.json';
 
   // What can we update?
   type updateModes = 'name' | 'shortDescription' | 'description';
@@ -12,6 +14,8 @@
   let csvData: string = '';
   let logEntries: { text: string; type: 'success' | 'error' | 'info'; id: number }[] = [];
   let isProcessing: boolean = false;
+
+  const TELEGRAM_API_DELAY = 100;
 
   // CSV parsing function
   function parseCSV(csvData: string): { languageCode: string; text: string }[] {
@@ -55,13 +59,13 @@
     };
 
   // Validate bot token using shared utility
-  async function handleTokenValidation(token: string) {
+  async function handleTokenCheck(token: string) {
     if (!token) {
       clearLog();
       return;
     }
 
-    const result = await validateBotToken(token);
+    const result = await checkBotToken(token);
     addLogEntry(result.message, result.success ? 'success' : 'error');
   }
 
@@ -100,7 +104,7 @@
           data.ok ? 'success' : 'error'
         );
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, TELEGRAM_API_DELAY));
       } catch (error) {
         addLogEntry(
           `${row.languageCode}: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -120,7 +124,7 @@
     clearLog();
 
     const updateTypeText = updateTypeTexts[updateMode];
-    addLogEntry(`Checking bot's current ${updateTypeText}...`);
+    addLogEntry(`Getting bot's current ${updateTypeText}...`);
 
     const getEndpoints: Record<typeof updateMode, string> = {
       name: 'getMyName',
@@ -128,26 +132,30 @@
       description: 'getMyDescription'
     };
 
-    const rows = [{ languageCode: '', text: '' }, ...parseCSV(csvData)];
+    // Use default language codes if user input is empty
+    const userInput = parseCSV(csvData);
+    const languageCodes = userInput.length === 0
+      ? allLanguageCodes.map((lang: { alpha2: string }) => lang.alpha2)
+      : ['', ...userInput.map((row: { languageCode: string }) => row.languageCode)];
 
-    for (const row of rows) {
+    for (const languageCode of languageCodes) {
       try {
         const response = await fetch(`https://api.telegram.org/bot${botToken}/${getEndpoints[updateMode]}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ language_code: row.languageCode })
+          body: JSON.stringify({ language_code: languageCode })
         });
 
         const data = await response.json() as TelegramResponse<TelegramBotInfo>;
         const currentValue = data.ok && data.result ?
           (data.result[endpointParams[updateMode]] || '') : '';
 
-        addLogEntry(`${row.languageCode || "generic"}: ${currentValue || "(not set)"}`);
+        addLogEntry(`${languageCode || "default"}: ${currentValue || "not set"}`);
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, TELEGRAM_API_DELAY));
       } catch (error) {
         addLogEntry(
-          `${row.languageCode}: ${error instanceof Error ? error.message : "Unknown error"}`,
+          `${languageCode}: ${error instanceof Error ? error.message : "Unknown error"}`,
           'error'
         );
       }
@@ -160,10 +168,19 @@
   let tokenTimeout: number | undefined;
   $: if (botToken) {
     clearTimeout(tokenTimeout);
-    tokenTimeout = window.setTimeout(() => handleTokenValidation(botToken), 500);
+    tokenTimeout = window.setTimeout(() => handleTokenCheck(botToken), 500);
   } else {
     clearLog();
   }
+
+  // Bootstrap tooltips are opt-in for performance reasons, so you must initialize them yourself.
+  onMount(() => {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      new (window as any).bootstrap.Tooltip(tooltipTriggerEl)
+    })
+  });
 </script>
 
 <div class="row">
@@ -176,7 +193,7 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-6">
+  <div class="col-lg-6 mb-3">
     <form on:submit|preventDefault={handleSubmit} class="card">
       <div class="card-body">
         <div class="mb-3">
@@ -249,8 +266,8 @@
             rows="10"
             bind:value={csvData}
             required
-            placeholder="en,This bot does something
-es,Este bot hace algo
+            placeholder="en,This bot does something.
+es,Este bot hace algo.
 de,Dieser Bot macht etwas."
           ></textarea>
         </div>
@@ -259,7 +276,7 @@ de,Dieser Bot macht etwas."
           <button
             type="submit"
             class="btn btn-primary"
-            disabled={isProcessing}
+            disabled={isProcessing || !botToken}
           >
             {isProcessing ? 'Processing...' : 'Update'}
           </button>
@@ -267,7 +284,7 @@ de,Dieser Bot macht etwas."
             type="button"
             class="btn btn-success"
             on:click={handleVerify}
-            disabled={isProcessing}
+            disabled={isProcessing || !botToken}
           >
             {isProcessing ? 'Processing...' : 'Read Current Values'}
           </button>
@@ -277,6 +294,6 @@ de,Dieser Bot macht etwas."
   </div>
 
   <div class="col-lg-6">
-    <LogBox {logEntries} title="Results" />
+    <LogBox {logEntries} />
   </div>
 </div>
