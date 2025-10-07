@@ -1,8 +1,14 @@
 <script lang="ts">
-  import type { TelegramResponse, TelegramBot, TelegramBotInfo } from '../types/telegram';
+  import type { TelegramResponse, TelegramBotInfo } from '../types/telegram';
+  import LogBox from './components/LogBox.svelte';
+  import { validateBotToken } from './functions/botTokenValidation';
+
+  // What can we update?
+  type updateModes = 'name' | 'shortDescription' | 'description';
+
   // Reactive state
   let botToken: string = '';
-  let updateType: 'name' | 'shortDescription' | 'description' = 'name';
+  let updateMode: updateModes = 'name';
   let csvData: string = '';
   let logEntries: { text: string; type: 'success' | 'error' | 'info'; id: number }[] = [];
   let isProcessing: boolean = false;
@@ -34,26 +40,29 @@
     logEntries = [];
   }
 
-  // Validate bot token
-  async function validateBotToken(token: string) {
+  // Update type text mapping
+  const updateTypeTexts: Record<updateModes, string> = {
+    name: 'name',
+    shortDescription: 'short description',
+    description: 'description'
+  };
+
+  // Endpoint parameters mapping
+  const endpointParams: Record<updateModes, keyof TelegramBotInfo> = {
+      name: 'name',
+      shortDescription: 'short_description',
+      description: 'description'
+    };
+
+  // Validate bot token using shared utility
+  async function handleTokenValidation(token: string) {
     if (!token) {
       clearLog();
       return;
     }
 
-    try {
-      const response = await fetch(`https://api.telegram.org/bot${token}/getMe`);
-      const data = await response.json() as TelegramResponse<TelegramBot>;
-
-      if (data.ok && data.result) {
-        const { first_name, username } = data.result;
-        addLogEntry(`Connected to @${username} (${first_name})`, 'success');
-      } else {
-        addLogEntry(data.description || "Invalid bot token", 'error');
-      }
-    } catch (error) {
-      addLogEntry(error instanceof Error ? error.message : "Connection error", 'error');
-    }
+    const result = await validateBotToken(token);
+    addLogEntry(result.message, result.success ? 'success' : 'error');
   }
 
   // Handle form submission
@@ -64,12 +73,11 @@
     clearLog();
 
     const rows = parseCSV(csvData);
-    const updateTypeText = updateType === 'name' ? 'name' :
-                          updateType === 'shortDescription' ? 'short description' : 'description';
+    const updateTypeText = updateTypeTexts[updateMode] || 'unknown';
 
     addLogEntry(`Updating bot's ${updateTypeText}...`);
 
-    const endpoints: Record<typeof updateType, string> = {
+    const endpoints: Record<typeof updateMode, string> = {
       name: 'setMyName',
       shortDescription: 'setMyShortDescription',
       description: 'setMyDescription'
@@ -77,13 +85,12 @@
 
     for (const row of rows) {
       try {
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/${endpoints[updateType]}`, {
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/${endpoints[updateMode]}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            [updateType === 'name' ? 'name' :
-             updateType === 'shortDescription' ? 'short_description' : 'description']: row.text,
-            language_code: row.languageCode
+            language_code: row.languageCode,
+            [endpointParams[updateMode]]: row.text
           })
         });
 
@@ -112,12 +119,10 @@
     isProcessing = true;
     clearLog();
 
-    const updateTypeText = updateType === 'name' ? 'name' :
-                          updateType === 'shortDescription' ? 'short description' : 'description';
-
+    const updateTypeText = updateTypeTexts[updateMode];
     addLogEntry(`Checking bot's current ${updateTypeText}...`);
 
-    const getEndpoints: Record<typeof updateType, string> = {
+    const getEndpoints: Record<typeof updateMode, string> = {
       name: 'getMyName',
       shortDescription: 'getMyShortDescription',
       description: 'getMyDescription'
@@ -127,7 +132,7 @@
 
     for (const row of rows) {
       try {
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/${getEndpoints[updateType]}`, {
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/${getEndpoints[updateMode]}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ language_code: row.languageCode })
@@ -135,8 +140,7 @@
 
         const data = await response.json() as TelegramResponse<TelegramBotInfo>;
         const currentValue = data.ok && data.result ?
-          (data.result[updateType === 'name' ? 'name' :
-                        updateType === 'shortDescription' ? 'short_description' : 'description'] || '') : '';
+          (data.result[endpointParams[updateMode]] || '') : '';
 
         addLogEntry(`${row.languageCode || "generic"}: ${currentValue || "(not set)"}`);
 
@@ -156,7 +160,7 @@
   let tokenTimeout: number | undefined;
   $: if (botToken) {
     clearTimeout(tokenTimeout);
-    tokenTimeout = window.setTimeout(() => validateBotToken(botToken), 500);
+    tokenTimeout = window.setTimeout(() => handleTokenValidation(botToken), 500);
   } else {
     clearLog();
   }
@@ -200,7 +204,7 @@
               name="updateType"
               id="updateName"
               value="name"
-              bind:group={updateType}
+              bind:group={updateMode}
               checked
             />
             <label class="form-check-label" for="updateName">
@@ -214,7 +218,7 @@
               name="updateType"
               id="updateShortDescription"
               value="shortDescription"
-              bind:group={updateType}
+              bind:group={updateMode}
             />
             <label class="form-check-label" for="updateShortDescription">
               Short Description
@@ -228,7 +232,7 @@
               name="updateType"
               id="updateDescription"
               value="description"
-              bind:group={updateType}
+              bind:group={updateMode}
             />
             <label class="form-check-label" for="updateDescription">
               Long Description
@@ -273,23 +277,6 @@ de,Dieser Bot macht etwas."
   </div>
 
   <div class="col-lg-6">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Results</h5>
-      </div>
-      <div class="card-body">
-        <div class="bg-light p-3 rounded" style="min-height: 300px; max-height: 600px; overflow-y: auto; font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; font-size: 13px;">
-          {#if logEntries.length === 0}
-            <div class="text-muted text-center fst-italic">Results will appear here</div>
-          {:else}
-            {#each logEntries as entry (entry.id)}
-              <div class="mb-2 p-2 rounded {entry.type === 'success' ? 'bg-success text-white' : entry.type === 'error' ? 'bg-danger text-white' : ''}">
-                {entry.text}
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </div>
-    </div>
+    <LogBox {logEntries} title="Results" />
   </div>
 </div>

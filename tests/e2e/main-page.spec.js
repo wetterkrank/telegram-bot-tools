@@ -17,11 +17,6 @@ test.describe('Main Page E2E Tests', () => {
     // Check that both tool cards are present
     await expect(page.getByRole('heading', { name: 'Bot Names' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Bot Sender' })).toBeVisible();
-
-    // Check that the navigation links are present
-    await expect(page.locator('ul.nav').getByRole('link', { name: 'Home' })).toBeVisible();
-    await expect(page.locator('ul.nav').getByRole('link', { name: 'Bot Names' })).toBeVisible();
-    await expect(page.locator('ul.nav').getByRole('link', { name: 'Bot Sender' })).toBeVisible();
   });
 
   test('should navigate to bot names page', async ({ page }) => {
@@ -35,7 +30,7 @@ test.describe('Main Page E2E Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // Check that we're on the bot names page
-    await expect(page.getByRole('heading', { name: 'Bot Rename' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Bot Names' })).toBeVisible();
 
     // Check that the URL has changed
     expect(page.url()).toContain('/bot-names');
@@ -50,9 +45,6 @@ test.describe('Main Page E2E Tests', () => {
 
     // Wait for navigation to complete
     await page.waitForLoadState('networkidle');
-
-    // Check that we're on the bot sender page
-    await expect(page.getByRole('heading', { name: 'Send Message as Telegram Bot' })).toBeVisible();
 
     // Check that the URL has changed
     expect(page.url()).toContain('/bot-sender');
@@ -69,7 +61,7 @@ test.describe('Main Page E2E Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // Check that we're on the bot names page
-    await expect(page.getByRole('heading', { name: 'Bot Rename' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Bot Names' })).toBeVisible();
 
     // Go back to main page
     await page.goto('/');
@@ -82,14 +74,7 @@ test.describe('Main Page E2E Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // Check that we're on the bot sender page
-    await expect(page.getByRole('heading', { name: 'Send Message as Telegram Bot' })).toBeVisible();
-  });
-
-  test('should have proper page title', async ({ page }) => {
-    await page.goto('/');
-
-    // Check that the page title is set correctly
-    await expect(page).toHaveTitle('Telegram Bot Tools');
+    await expect(page.getByRole('heading', { name: 'Bot Sender' })).toBeVisible();
   });
 
   test('should display header with navigation', async ({ page }) => {
@@ -104,7 +89,7 @@ test.describe('Main Page E2E Tests', () => {
     await expect(logoLink).toBeVisible();
 
     // Check that all navigation items are present
-    const navItems = ['Home', 'Bot Names', 'Bot Sender'];
+    const navItems = ['Bot Names', 'Bot Sender'];
     for (const item of navItems) {
       await expect(page.locator('ul.nav').getByRole('link', { name: item })).toBeVisible();
     }

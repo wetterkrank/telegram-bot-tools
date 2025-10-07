@@ -1,28 +1,22 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { TelegramSendMessageResponse } from '../types/telegram';
+  import LogBox from './components/LogBox.svelte';
+  import { validateBotToken } from './functions/botTokenValidation';
 
   // Reactive state
   let botToken: string = '';
   let chatId: string = '';
   let message: string = '';
   let isSending: boolean = false;
-  let toasts: { id: number; message: string; type: 'info' | 'success' | 'danger'; timestamp: number }[] = [];
+  let logEntries: { text: string; type: 'success' | 'error' | 'info'; id: number }[] = [];
 
-  // Toast management
-  function showToast(message: string, type: 'info' | 'success' | 'danger' = 'info') {
-    const toast = {
-      id: Date.now(),
-      message,
-      type,
-      timestamp: Date.now()
-    };
-    toasts = [...toasts, toast];
+  // Log management
+  function addLogEntry(text: string, type: 'success' | 'error' | 'info' = 'info') {
+    logEntries = [...logEntries, { text, type, id: Date.now() }];
+  }
 
-    // Auto-remove toast after delay
-    setTimeout(() => {
-      toasts = toasts.filter(t => t.id !== toast.id);
-    }, type === 'success' || type === 'info' ? 3000 : 5000);
+  function clearLog() {
+    logEntries = [];
   }
 
   // Send message to Telegram
@@ -46,7 +40,8 @@
     if (!botToken || !chatId || !message) return;
 
     isSending = true;
-    showToast("Sending...", "info");
+    clearLog();
+    addLogEntry("Sending message...", "info");
 
     try {
       const result = await sendDataToTelegram({
@@ -56,22 +51,39 @@
       });
 
       if (result.ok) {
-        showToast("Message sent successfully!", "success");
+        addLogEntry("Message sent successfully!", "success");
+        // Clear form fields after successful send
+        chatId = '';
+        message = '';
       } else {
-        showToast(`Error: ${result.description}`, "danger");
+        addLogEntry(`Error: ${result.description}`, "error");
       }
     } catch (error) {
       console.error("Error:", error);
-      showToast(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, "danger");
+      addLogEntry(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, "error");
     } finally {
       isSending = false;
     }
   }
 
-  // Initialize Bootstrap tooltips
-  onMount(() => {
-    // Bootstrap tooltips will be initialized automatically
-  });
+  async function handleTokenValidation(token: string) {
+    if (!token) {
+      clearLog();
+      return;
+    }
+
+    const result = await validateBotToken(token);
+    addLogEntry(result.message, result.success ? 'success' : 'error');
+  }
+
+  // Debounced token validation
+  let tokenTimeout: number | undefined;
+  $: if (botToken) {
+    clearTimeout(tokenTimeout);
+    tokenTimeout = window.setTimeout(() => handleTokenValidation(botToken), 500);
+  } else {
+    clearLog();
+  }
 </script>
 
 <div class="row">
@@ -84,10 +96,9 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-8">
+  <div class="col-lg-6">
     <div class="card shadow">
       <div class="card-body">
-
         <form on:submit|preventDefault={handleSubmit}>
           <div class="mb-3">
             <label for="botToken" class="form-label">Bot Token (<a href="https://t.me/BotFather" target="_blank" class="text-decoration-none">@BotFather</a>):</label>
@@ -104,7 +115,7 @@
           </div>
 
           <div class="mb-3">
-            <label for="chatId" class="form-label">Chat ID (<a href="https://t.me/userinfobot" target="_blank" class="text-decoration-none">@userinfobot</a>):</label>
+            <label for="chatId" class="form-label">Chat ID (<a href="https://t.me/userinfobot" target="_blank" class="text-decoration-none">@userinfobot</a> to get yours):</label>
             <input
               type="text"
               id="chatId"
@@ -112,9 +123,6 @@
               bind:value={chatId}
               required
             />
-            <div class="form-text">
-
-            </div>
           </div>
 
           <div class="mb-3">
@@ -143,24 +151,8 @@
       </div>
     </div>
   </div>
-</div>
 
-<!-- Toast Container -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
-  {#each toasts as toast (toast.id)}
-    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="toast-header">
-        <strong class="me-auto">Telegram Bot</strong>
-        <button
-          type="button"
-          class="btn-close"
-          on:click={() => toasts = toasts.filter(t => t.id !== toast.id)}
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="toast-body">
-        {toast.message}
-      </div>
-    </div>
-  {/each}
+  <div class="col-lg-6">
+    <LogBox {logEntries} title="Results" />
+  </div>
 </div>

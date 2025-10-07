@@ -1,6 +1,6 @@
 <script>
   import { Router, Route } from 'svelte5-router';
-  import Layout from './Layout.svelte';
+  import Layout from './components/Layout.svelte';
   import MainPage from './MainPage.svelte';
   import BotNames from './BotNames.svelte';
   import BotSender from './BotSender.svelte';
