@@ -5,7 +5,7 @@ Web-based tools for managing Telegram bots.
 ## Features
 
 ### Bot Names Tool
-- Updates bot name, short description, and long description in multiple languages
+- Updates your bot's name, short description, and long description in multiple languages
 - CSV format example:
 ```
 en,My Awesome Bot
@@ -15,7 +15,7 @@ fr,Mon Bot Génial
 ```
 
 ### Bot Sender Tool
-- Sends a message to a specific chat from the bot
+- Sends a message to selected chats from your bot
 
 ## Tech Stack
 - Vite
