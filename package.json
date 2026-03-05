@@ -29,7 +29,7 @@
     "eslint-plugin-svelte": "^3.12.4",
     "globals": "^16.4.0",
     "jsdom": "^27.0.0",
-    "svelte": "^5.39.9",
+    "svelte": "^5.53.5",
     "svelte-check": "^4.3.2",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.46.0",
